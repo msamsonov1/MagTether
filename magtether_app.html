@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MagTether | Electrodynamic Space Debris Remediation Tether Monitor</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- Bulletproof MathJax v3 Configuration -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #03050a;
+      color: #e2e8f0;
+      overflow-x: hidden;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .formula-box {
+      background-color: #050914;
+      border: 1px solid #1e293b;
+      border-radius: 0.5rem;
+      padding: 0.85rem 1rem;
+      margin: 0.6rem 0;
+      text-align: center;
+      color: #38bdf8;
+      overflow-x: auto;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #030712;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1f2937;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #374151;
+    }
+    .glow-cyan {
+      box-shadow: 0 0 18px rgba(6, 182, 212, 0.25);
+    }
+    .glow-rose {
+      box-shadow: 0 0 18px rgba(244, 63, 94, 0.35);
+    }
+    .glow-emerald {
+      box-shadow: 0 0 18px rgba(16, 185, 129, 0.25);
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col bg-[#03050a] text-slate-200">
+
+  <!-- Top System Header -->
+  <header class="border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+          <i data-lucide="orbit" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-lg tracking-wide text-white">MagTether</span>
+            <span class="text-[10px] uppercase tracking-wider font-mono-code px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-400 border border-cyan-700/50">NASA SBIR/STTR</span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">Electrodynamic Space Debris Remediation Tether Flight Monitor</p>
+        </div>
+      </div>
+
+      <!-- Live Global Status Pills -->
+      <div class="flex items-center gap-3">
+        <div class="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs font-mono-code">
+          <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-slate-400">ORBIT:</span>
+          <span class="text-emerald-400 font-semibold" id="topOrbitAlt">510 km LEO</span>
+        </div>
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs font-mono-code">
+          <span class="text-slate-400">CONTROL:</span>
+          <span class="text-cyan-400 font-semibold" id="topControlStatus">ACTIVE AUTO</span>
+        </div>
+        <button id="emergencyKillBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/80 text-rose-300 text-xs font-mono-code transition">
+          <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+          <span>FAULT INJECT</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs Bar -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-900 flex space-x-1 sm:space-x-3 overflow-x-auto">
+      <button id="tabBtnSim" onclick="switchTab('sim')" class="flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-cyan-400 text-cyan-400">
+        <i data-lucide="activity" class="w-4 h-4"></i>
+        <span>Live Telemetry &amp; HUD</span>
+      </button>
+      <button id="tabBtnPhysics" onclick="switchTab('physics')" class="flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200">
+        <i data-lucide="atom" class="w-4 h-4"></i>
+        <span>Core Physics Model</span>
+      </button>
+      <button id="tabBtnProposal" onclick="switchTab('proposal')" class="flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200">
+        <i data-lucide="file-check-2" class="w-4 h-4"></i>
+        <span>$225k NASA SBIR / UCF</span>
+      </button>
+      <button id="tabBtnARR" onclick="switchTab('arr')" class="flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200">
+        <i data-lucide="trending-up" class="w-4 h-4"></i>
+        <span>Commercial &amp; ARR Breakdown</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Wrapper -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ========================================================================= -->
+    <!-- TAB 1: LIVE SIMULATION & TELEMETRY HUD -->
+    <!-- ========================================================================= -->
+    <section id="viewSim" class="space-y-6">
+
+      <!-- System Notice Banner -->
+      <div id="systemStateAlert" class="p-3.5 rounded-xl border border-cyan-500/30 bg-cyan-950/20 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
+        <div class="flex items-center gap-2.5">
+          <div id="alertIconBox" class="p-1.5 rounded-md bg-cyan-500/20 text-cyan-400">
+            <i data-lucide="radio" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <span class="font-bold text-cyan-300 font-mono-code" id="alertTitle">CLOSED-LOOP OBSERVER ACTIVE:</span>
+            <span class="text-slate-300 ml-1" id="alertDesc">Continuous geomagnetic flux $B$ and orbital velocity $v$ tracking within stable libration envelope.</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 font-mono-code text-xs">
+          <span class="text-slate-400">Lorentz Thrust:</span>
+          <span id="lorentzMetric" class="text-cyan-400 font-bold">1.42 N</span>
+          <span class="text-slate-600">|</span>
+          <span class="text-slate-400">Emitter Cathode:</span>
+          <span id="emitterMetric" class="text-emerald-400 font-bold">1.84 A (Nominal)</span>
+        </div>
+      </div>
+
+      <!-- Top Row: Canvas Visualization + Live Phase Space Plot -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left: Interactive Canvas (7 Cols) -->
+        <div class="lg:col-span-7 bg-slate-900/50 border border-slate-800/80 rounded-2xl p-4 flex flex-col relative overflow-hidden backdrop-blur">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i>
+              <h2 class="text-sm font-semibold tracking-wide text-white">LEO Bare-Wire Tether Dynamic Libration Renderer</h2>
+            </div>
+            <div class="flex items-center gap-2 font-mono-code text-[11px]">
+              <span id="badgeState" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">LIBRATION STABLE</span>
+              <span class="text-slate-500">5 km Tether</span>
+            </div>
+          </div>
+
+          <!-- The Canvas -->
+          <div class="w-full flex-1 min-h-[300px] sm:min-h-[340px] relative bg-[#020409] rounded-xl border border-slate-800/80 overflow-hidden">
+            <canvas id="tetherCanvas" class="w-full h-full block"></canvas>
+            
+            <!-- Real-time HUD overlay on canvas -->
+            <div class="absolute top-3 left-3 bg-slate-950/80 border border-slate-800 rounded-lg p-2.5 text-[11px] font-mono-code space-y-1 backdrop-blur pointer-events-none">
+              <div class="text-slate-400">Altitude ($h$): <span id="hudAlt" class="text-cyan-300 font-bold">510 km</span></div>
+              <div class="text-slate-400">Geomag Flux ($B$): <span id="hudB" class="text-amber-300 font-bold">34.2 &mu;T</span></div>
+              <div class="text-slate-400">Velocity ($v$): <span id="hudV" class="text-emerald-300 font-bold">7.61 km/s</span></div>
+              <div class="text-slate-400">In-Plane Angle ($\theta$): <span id="hudTheta" class="text-white font-bold">1.4&deg;</span></div>
+              <div class="text-slate-400">Tether Tension ($T$): <span id="hudTension" class="text-purple-300 font-bold">4.88 N</span></div>
+            </div>
+
+            <!-- Canvas Legend / Indicators -->
+            <div class="absolute bottom-2 right-2 bg-slate-950/80 border border-slate-800/80 rounded px-2 py-1 text-[10px] font-mono-code text-slate-400 flex items-center gap-3 pointer-events-none">
+              <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> Anode Debris</div>
+              <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Cathode Emitter</div>
+              <div class="flex items-center gap-1"><span class="w-3 h-0.5 bg-amber-400"></span> Earth's B-Field</div>
+            </div>
+          </div>
+
+          <!-- Bottom Control Bar inside Canvas card -->
+          <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs font-mono-code">
+            <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800">
+              <span class="text-slate-500 text-[10px] block">INDUCED EMF ($\mathcal{E}$)</span>
+              <span id="metricEMF" class="text-white font-semibold text-sm">1,301 V</span>
+            </div>
+            <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800">
+              <span class="text-slate-500 text-[10px] block">COLLECTED CURRENT ($I$)</span>
+              <span id="metricCurrent" class="text-cyan-400 font-semibold text-sm">1.84 A</span>
+            </div>
+            <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800">
+              <span class="text-slate-500 text-[10px] block">LORENTZ DRAG ($F_L$)</span>
+              <span id="metricLorentz" class="text-amber-400 font-semibold text-sm">0.31 N</span>
+            </div>
+            <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800">
+              <span class="text-slate-500 text-[10px] block">DE-ORBIT RATE</span>
+              <span id="metricDeorbit" class="text-emerald-400 font-semibold text-sm">14.8 km/day</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Primary Phase Space Scatter Plot (5 Cols) -->
+        <div class="lg:col-span-5 bg-slate-900/50 border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between backdrop-blur">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <div class="flex items-center gap-2">
+                <i data-lucide="crosshair" class="w-4 h-4 text-cyan-400"></i>
+                <h3 class="text-sm font-semibold tracking-wide text-white">Diagnostic Phase-Space: $B$ vs. $v$</h3>
+              </div>
+              <span class="text-[10px] font-mono-code text-cyan-400 bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-800/40">Flight Observer Corridor</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mb-2">
+              Cross-cutting Earth's geomagnetic flux $B$ against orbital speed $v$. Software dynamically dampens chaotic libration before entering the tension collapse zone.
+            </p>
+          </div>
+
+          <!-- Phase-Space Chart Container -->
+          <div class="w-full h-[270px] relative">
+            <canvas id="phaseSpaceChart"></canvas>
+          </div>
+
+          <!-- Corridor Legend & Safety Gauge -->
+          <div class="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono-code">
+            <div class="flex items-center gap-2">
+              <span class="h-2.5 w-2.5 rounded-sm bg-cyan-400"></span>
+              <span class="text-slate-300">Nominal LEO Track</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="h-2.5 w-2.5 rounded-sm bg-rose-500/60 border border-rose-500"></span>
+              <span class="text-rose-300">Chaotic Snap Zone</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="h-3 w-3 rounded-full bg-amber-400 animate-ping"></span>
+              <span class="text-amber-300 font-bold" id="phasePointStatus">IN BOUNDS</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Middle Row: Closed-Loop Controls & Secondary Plots -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Controls & Fault Injection Panel (4 cols) -->
+        <div class="lg:col-span-4 bg-slate-900/50 border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between backdrop-blur space-y-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <i data-lucide="sliders" class="w-4 h-4 text-cyan-400"></i>
+              <h3 class="text-sm font-semibold text-white">Observer &amp; Emitter Modulation</h3>
+            </div>
+            <p class="text-xs text-slate-400">Adjust orbit parameters or inject plasma dropouts to test cathode stabilization.</p>
+          </div>
+
+          <!-- Sliders -->
+          <div class="space-y-3 font-mono-code text-xs">
+            <!-- Altitude Slider -->
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-300">Orbit Altitude ($h$)</span>
+                <span id="sliderAltVal" class="text-cyan-400">510 km</span>
+              </div>
+              <input type="range" id="sliderAlt" min="300" max="900" step="10" value="510" class="w-full accent-cyan-400 bg-slate-800 rounded-lg cursor-pointer h-1.5">
+            </div>
+
+            <!-- Plasma Density Slider -->
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-300">Plasma Density ($N_e$)</span>
+                <span id="sliderPlasmaVal" class="text-emerald-400">1.2 &times; 10&sup1;&sup1; m&sup3;</span>
+              </div>
+              <input type="range" id="sliderPlasma" min="0.1" max="5.0" step="0.1" value="1.2" class="w-full accent-emerald-400 bg-slate-800 rounded-lg cursor-pointer h-1.5">
+            </div>
+
+            <!-- Tether Length Slider -->
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-300">Tether Length ($L$)</span>
+                <span id="sliderLengthVal" class="text-purple-400">5.0 km</span>
+              </div>
+              <input type="range" id="sliderLength" min="1.0" max="10.0" step="0.5" value="5.0" class="w-full accent-purple-400 bg-slate-800 rounded-lg cursor-pointer h-1.5">
+            </div>
+          </div>
+
+          <!-- Control Mode Toggles & Fault Injection -->
+          <div class="space-y-2 pt-2 border-t border-slate-800">
+            <div class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1">Flight Software Mode</div>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="btnModeAuto" class="py-2 px-3 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono-code text-xs font-semibold flex items-center justify-center gap-1.5">
+                <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+                <span>AUTO DAMP</span>
+              </button>
+              <button id="btnModeManual" class="py-2 px-3 rounded-lg bg-slate-800/80 hover:bg-slate-800 text-slate-400 border border-slate-700 font-mono-code text-xs flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="hand" class="w-3.5 h-3.5"></i>
+                <span>MANUAL OPEN</span>
+              </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button id="btnInjectAnomaly" class="py-2 px-3 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono-code text-xs flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="zap-off" class="w-3.5 h-3.5"></i>
+                <span>Plasma Dropout</span>
+              </button>
+              <button id="btnResetNominal" class="py-2 px-3 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 border border-slate-700 font-mono-code text-xs flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                <span>Reset Flight</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Telemetry Time Series 1: Tether Libration & Tension (4 cols) -->
+        <div class="lg:col-span-4 bg-slate-900/50 border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between backdrop-blur">
+          <div class="flex items-center justify-between mb-1">
+            <div class="flex items-center gap-2">
+              <i data-lucide="line-chart" class="w-4 h-4 text-cyan-400"></i>
+              <h3 class="text-sm font-semibold text-white">Libration Angle &amp; Tension</h3>
+            </div>
+            <span class="text-[10px] font-mono-code text-slate-400">$\theta_{\text{in}}$ (deg) / $T$ (N)</span>
+          </div>
+          <div class="w-full h-[220px] relative">
+            <canvas id="librationChart"></canvas>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-2 font-mono-code">
+            Threshold: Libration &gt; &plusmn;22&deg; triggers chaotic snap alert.
+          </p>
+        </div>
+
+        <!-- Telemetry Time Series 2: Emitter Cathode Current vs Lorentz Force (4 cols) -->
+        <div class="lg:col-span-4 bg-slate-900/50 border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between backdrop-blur">
+          <div class="flex items-center justify-between mb-1">
+            <div class="flex items-center gap-2">
+              <i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i>
+              <h3 class="text-sm font-semibold text-white">Active Cathode Dampening</h3>
+            </div>
+            <span class="text-[10px] font-mono-code text-emerald-400">$I_{\text{emitter}}$ &amp; $F_{\text{Lorentz}}$</span>
+          </div>
+          <div class="w-full h-[220px] relative">
+            <canvas id="emitterChart"></canvas>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-2 font-mono-code">
+            Auto-throttle modulates thermionic emitter between 0.1A and 3.5A.
+          </p>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: CORE PHYSICS & MATHEMATICAL MODEL -->
+    <!-- ========================================================================= -->
+    <section id="viewPhysics" class="hidden space-y-6">
+
+      <div class="border-b border-slate-800 pb-4">
+        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+          <i data-lucide="atom" class="w-6 h-6 text-cyan-400"></i>
+          <span>Electrodynamic Bare-Wire Tether Physics &amp; Dynamic State Observer</span>
+        </h2>
+        <p class="text-sm text-slate-400 mt-1">
+          Rigorous mathematical framework governing Orbital-Motion-Limited (OML) plasma electron collection, geomagnetic Lorentz deceleration, and pendular libration stabilization.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Card 1: Fundamental Governing Equations -->
+        <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 space-y-3 backdrop-blur">
+          <div class="flex items-center gap-2 text-cyan-400 font-semibold text-sm">
+            <i data-lucide="zap" class="w-4 h-4"></i>
+            <span>1. Induced Electromotive Force &amp; Lorentz Drag Force</span>
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            As a conductive tether of length $\mathbf{L}$ traverses the terrestrial magnetic field $\mathbf{B}$ at hypervelocity orbital speed $\mathbf{v}$, it cuts geomagnetic field lines, inducing an electromotive force (EMF) along its conductive length:
+          </p>
+          <div class="formula-box">
+            $$\mathcal{E}_{\text{induced}} = \int_{0}^{L} \left( \mathbf{v}_{\text{orb}} \times \mathbf{B}_{\text{geo}} \right) \cdot d\mathbf{l} = v B L \sin(\alpha)$$
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            When the circuit is closed via ambient ionospheric plasma collection at the anodic upper segment and active electron emission at the cathodic lower end, a current $I(s)$ circulates, generating a Lorentz braking force $\mathbf{F}_L$:
+          </p>
+          <div class="formula-box">
+            $$\mathbf{F}_L = \int_{0}^{L} I(s) \left( d\mathbf{l} \times \mathbf{B}_{\text{geo}} \right) \quad \implies \quad F_{\text{drag}} \approx I_{\text{avg}} L B_{\perp}$$
+          </div>
+          <p class="text-xs text-slate-400">
+            This continuous electromagnetic drag removes orbital mechanical energy without expendable chemical propellants, causing continuous altitude decay ($dh/dt$).
+          </p>
+        </div>
+
+        <!-- Card 2: Microscopic Material & OML Plasma Theory -->
+        <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 space-y-3 backdrop-blur">
+          <div class="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+            <span>2. Orbital-Motion-Limited (OML) Bare-Wire Current Collection</span>
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Unlike insulated tethers requiring massive end-body contactors, a bare conductive cylinder collects electrons directly along its positively biased upper section according to OML cylindrical probe physics:
+          </p>
+          <div class="formula-box">
+            $$i_{\text{OML}}(s) = \frac{d I}{d s} = \frac{2 r_{\text{wire}} q_e N_e}{\pi} \sqrt{\frac{2 q_e \Delta V(s)}{m_e}}$$
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Integrating potential $\Delta V(s)$ from the cathodic emitter ($s=0$) to the anodic bias reversal point ($s=s_0$) reveals that current increases with the $3/2$ power of tether length:
+          </p>
+          <div class="formula-box">
+            $$I(s) = \frac{4}{3} e N_e r_{\text{wire}} \sqrt{\frac{2 e}{m_e}} \left( E_{\text{ind}} \right)^{1/2} s^{3/2}$$
+          </div>
+          <p class="text-xs text-slate-400">
+            Day/night solar terminator crossings induce sudden 10x drops in ambient ionospheric electron density $N_e$, causing dangerous drops in induced tension if unmonitored.
+          </p>
+        </div>
+
+        <!-- Card 3: Diagnostic State Observer & Inversion Algorithm -->
+        <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 space-y-3 backdrop-blur">
+          <div class="flex items-center gap-2 text-amber-400 font-semibold text-sm">
+            <i data-lucide="cpu" class="w-4 h-4"></i>
+            <span>3. Non-Linear Libration Mechanics &amp; State Observer</span>
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            The tether experiences gravity-gradient torque aligning it along the local vertical, perturbed by the non-conservative Lorentz torque. The in-plane libration angle $\theta$ follows the non-linear equation of motion:
+          </p>
+          <div class="formula-box">
+            $$\ddot{\theta} + 3 \omega_0^2 \sin\theta \cos\theta = \frac{3 \mathbf{F}_L}{2 m_{\text{tether}} L} \cos\theta - 2 \omega_0 \frac{\dot{L}}{L} \sin\theta$$
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            The flight software implements an Extended Kalman Filter (EKF) observer monitoring $(B, v)$ states. When observed tension feedback deviates from the theoretical Lorentz baseline $\Delta F_L = F_{\text{observed}} - I L B$:
+          </p>
+          <div class="formula-box">
+            $$I_{\text{emitter}}(t) = I_{\text{nominal}} - K_p \dot{\theta} - K_d \left( \ddot{\theta} - \ddot{\theta}_{\text{des}} \right) \cdot \operatorname{sgn}(B_{\perp})$$
+          </div>
+          <p class="text-xs text-slate-400">
+            By modulating active hollow-cathode electron discharge at the base, the algorithm applies stabilizing counter-torques, eliminating chaotic resonance before tension drops below zero (slack snapping).
+          </p>
+        </div>
+
+        <!-- Card 4: Sensor Hardware & Micro-Fabrication Specs -->
+        <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 space-y-3 backdrop-blur">
+          <div class="flex items-center gap-2 text-purple-400 font-semibold text-sm">
+            <i data-lucide="microchip" class="w-4 h-4"></i>
+            <span>4. Substrate &amp; Sensor Hardware Specifications</span>
+          </div>
+          <div class="space-y-2 text-xs text-slate-300">
+            <div class="flex justify-between border-b border-slate-800 py-1.5">
+              <span class="text-slate-400">Tether Material Substrate:</span>
+              <span class="font-mono-code text-cyan-300 font-medium">Aluminum-2024 with Carbon Nanotube (CNT) Mesh</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-800 py-1.5">
+              <span class="text-slate-400">Tether Geometry &amp; Radius:</span>
+              <span class="font-mono-code text-cyan-300 font-medium">Tape Architecture (25 mm &times; 50 &mu;m) / $r_{\text{eff}} = 0.4 \text{ mm}$</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-800 py-1.5">
+              <span class="text-slate-400">Electron Emitter System:</span>
+              <span class="font-mono-code text-emerald-300 font-medium">C12A7:e- Electride Hollow Cathode (3.5A Max)</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-800 py-1.5">
+              <span class="text-slate-400">Geomagnetic Magnetometer:</span>
+              <span class="font-mono-code text-amber-300 font-medium">Tri-axial Fluxgate (&plusmn;65,000 nT range, 0.1 nT resolution)</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-800 py-1.5">
+              <span class="text-slate-400">Plasma Langmuir Diagnostic:</span>
+              <span class="font-mono-code text-purple-300 font-medium">High-Speed Swept Planar Probe (100 Hz sampling)</span>
+            </div>
+            <div class="flex justify-between py-1.5">
+              <span class="text-slate-400">Flight Computer Core:</span>
+              <span class="font-mono-code text-slate-200 font-medium">Rad-Hard dual-core LEON3FT SPARC V8 (50 MIPS)</span>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 pt-1">
+            Complies with ISO-27852 space environment hypervelocity micro-meteoroid survivability guidelines via redundant multi-ribbon tape weave.
+          </p>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 3: $225,000 NASA SBIR/STTR PROPOSAL & HARDWARE TRANSITION -->
+    <!-- ========================================================================= -->
+    <section id="viewProposal" class="hidden space-y-6">
+
+      <!-- Topic Alignment Banner -->
+      <div class="bg-gradient-to-r from-cyan-950/40 via-slate-900 to-slate-900 border border-cyan-500/30 rounded-2xl p-6 backdrop-blur">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 text-xs font-mono-code font-bold">NASA SBIR/STTR SOLICITATION 2026</span>
+              <span class="text-xs text-slate-400 font-mono-code">Topic Code: Z11.01-4491</span>
+            </div>
+            <h2 class="text-xl font-bold text-white">In-Space Servicing, Debris Tracking and Remediation (ISAM)</h2>
+            <p class="text-sm text-slate-300 mt-1 max-w-3xl">
+              Phase I Proposal: <strong class="text-cyan-300">Autonomous Active Cathode Libration Damping Software for Electrodynamic De-Orbit Tethers</strong>.
+            </p>
+          </div>
+          <div class="text-right">
+            <div class="text-2xl font-bold font-mono-code text-emerald-400">$225,000</div>
+            <span class="text-xs text-slate-400 font-mono-code">Phase I Fixed-Price | 6 Months</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Partner Allocation & Budget Breakdown -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 backdrop-blur">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-mono-code text-cyan-400 uppercase tracking-wide">Prime Contractor</span>
+            <span class="text-xs font-mono-code text-slate-400">70.0% Allocation</span>
+          </div>
+          <div class="text-2xl font-bold text-white font-mono-code mb-1">$157,500</div>
+          <h4 class="text-sm font-semibold text-slate-200 mb-2">RF WaveCode Dynamics LLC</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Lead software architecture, non-linear libration observer algorithms, EKF geomagnetic state estimation, and flight embedded C runtime validation.
+          </p>
+        </div>
+
+        <div class="bg-slate-900/50 border border-cyan-500/30 rounded-2xl p-5 backdrop-blur glow-cyan">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-mono-code text-emerald-400 uppercase tracking-wide">University Partner</span>
+            <span class="text-xs font-mono-code text-emerald-400 font-bold">30.0% STTR Mandatory</span>
+          </div>
+          <div class="text-2xl font-bold text-emerald-400 font-mono-code mb-1">$67,500</div>
+          <h4 class="text-sm font-semibold text-white mb-2">University of Central Florida (UCF)</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Center for Advanced Turbomachinery and Energy Research (CATER) &amp; Plasma Propulsion Labs. Vacuum arc plasma chamber verification of cathode emission.
+          </p>
+        </div>
+
+        <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 backdrop-blur">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-mono-code text-purple-400 uppercase tracking-wide">Phase II Runway</span>
+            <span class="text-xs font-mono-code text-slate-400">Transition Target</span>
+          </div>
+          <div class="text-2xl font-bold text-purple-400 font-mono-code mb-1">$850,000 - $1.2M</div>
+          <h4 class="text-sm font-semibold text-slate-200 mb-2">CubeSat In-Orbit Demonstration</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Flight protoflight 3U deployer module scheduled with NASA Flight Opportunities / Commercial Rideshare to demonstrate rapid de-orbit from 600km to 200km.
+          </p>
+        </div>
+
+      </div>
+
+      <!-- 6-Month Phase I Milestone Work Breakdown Schedule -->
+      <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-6 backdrop-blur space-y-4">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="calendar" class="w-4 h-4 text-cyan-400"></i>
+          <span>Phase I Milestone Work Breakdown Structure (Months 1 &ndash; 6)</span>
+        </h3>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+          <div class="bg-slate-950/70 border border-slate-800 p-4 rounded-xl space-y-2">
+            <div class="flex justify-between items-center text-xs font-mono-code">
+              <span class="text-cyan-400 font-bold">MILESTONE 1</span>
+              <span class="text-slate-500">M1 &ndash; M2</span>
+            </div>
+            <h4 class="text-sm font-semibold text-slate-200">Non-Linear Kinetic Tether Model</h4>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Formulate 6-DOF bead-model tether dynamics incorporating IGRF-13 geomagnetic coordinates and IRI-2020 ionospheric electron density distributions.
+            </p>
+            <div class="pt-1 text-[11px] font-mono-code text-cyan-300">Deliverable: High-Fidelity Python/C Sim Engine</div>
+          </div>
+
+          <div class="bg-slate-950/70 border border-slate-800 p-4 rounded-xl space-y-2">
+            <div class="flex justify-between items-center text-xs font-mono-code">
+              <span class="text-cyan-400 font-bold">MILESTONE 2</span>
+              <span class="text-slate-500">M3 &ndash; M4</span>
+            </div>
+            <h4 class="text-sm font-semibold text-slate-200">State Observer &amp; Inversion Logic</h4>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Develop EKF algorithm fusing magnetometer vector drift with tension load-cell telemetry to detect impending slack snapping 120 seconds in advance.
+            </p>
+            <div class="pt-1 text-[11px] font-mono-code text-cyan-300">Deliverable: Observer Software Inversion Kernel</div>
+          </div>
+
+          <div class="bg-slate-950/70 border border-slate-800 p-4 rounded-xl space-y-2">
+            <div class="flex justify-between items-center text-xs font-mono-code">
+              <span class="text-cyan-400 font-bold">MILESTONE 3</span>
+              <span class="text-slate-500">M4 &ndash; M5</span>
+            </div>
+            <h4 class="text-sm font-semibold text-slate-200">UCF Vacuum Chamber Verification</h4>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Hardware-in-the-loop (HIL) test inside UCF CATER thermal vacuum chamber ($10^{-6}$ Torr). Test active C12A7 cathode discharge modulation at 50Hz.
+            </p>
+            <div class="pt-1 text-[11px] font-mono-code text-cyan-300">Deliverable: Empirical Cathode Response Curves</div>
+          </div>
+
+          <div class="bg-slate-950/70 border border-slate-800 p-4 rounded-xl space-y-2">
+            <div class="flex justify-between items-center text-xs font-mono-code">
+              <span class="text-cyan-400 font-bold">MILESTONE 4</span>
+              <span class="text-slate-500">M6</span>
+            </div>
+            <h4 class="text-sm font-semibold text-slate-200">Phase II Hardware Architecture</h4>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Consolidate flight firmware onto rad-hard FPGA payload boards. Complete final Phase II prototype architecture and transition roadmap for NASA ISAM.
+            </p>
+            <div class="pt-1 text-[11px] font-mono-code text-cyan-300">Deliverable: Final Phase I Report &amp; Phase II Proposal</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Facility Test Infrastructure -->
+      <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 backdrop-blur flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="p-3 rounded-xl bg-cyan-950/80 border border-cyan-800/60 text-cyan-400">
+            <i data-lucide="building-2" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-white">University Partner Testing Facility: UCF CATER / Plasma Labs</h4>
+            <p class="text-xs text-slate-400">
+              Equipped with a 2.5m cylindrical cryo-pumped high-vacuum chamber, plasma discharge generators, and magnetic coil simulator array.
+            </p>
+          </div>
+        </div>
+        <div class="text-right flex-shrink-0">
+          <span class="px-3 py-1 rounded bg-slate-800 border border-slate-700 text-xs font-mono-code text-cyan-300">TRL 3 &rarr; TRL 5 Validated</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 4: COMMERCIAL & NATIONWIDE ARR BREAKDOWN -->
+    <!-- ========================================================================= -->
+    <section id="viewARR" class="hidden space-y-6">
+
+      <!-- Executive Summary Header -->
+      <div class="bg-gradient-to-r from-cyan-950/30 via-slate-900 to-slate-900 border border-cyan-500/30 rounded-2xl p-6 backdrop-blur flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <span class="px-2.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 text-xs font-mono-code font-bold">EXECUTIVE COMMERCIAL SUMMARY</span>
+          <h2 class="text-2xl font-bold text-white mt-1">Autonomous Tether Remediation Software Fleet Market</h2>
+          <p class="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
+            Zero-propellant passive de-orbit flight software licensing for mega-constellations, commercial space tugs, upper stages, and civil space asset protection.
+          </p>
+        </div>
+        <div class="text-left md:text-right">
+          <div class="text-3xl font-extrabold font-mono-code text-emerald-400">$218.4M</div>
+          <span class="text-xs text-slate-400 font-mono-code">Total Mature Civil ARR Nationwide</span>
+          <div class="mt-1 text-[11px] font-mono-code text-cyan-400">10.5&times; SaaS Valuation: $2.29B</div>
+        </div>
+      </div>
+
+      <!-- ARR Distribution Table -->
+      <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur">
+        <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i data-lucide="table" class="w-4 h-4 text-cyan-400"></i>
+            <span>Civil Commercial Market Segmentation &amp; ARR Projection</span>
+          </h3>
+          <span class="text-xs font-mono-code text-slate-400">Recurring Annual License + Telemetry SaaS</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="border-b border-slate-800 bg-slate-950/60 font-mono-code text-slate-400">
+                <th class="py-3 px-4">Market Vertical</th>
+                <th class="py-3 px-4">Primary Application</th>
+                <th class="py-3 px-4">SaaS License Metric</th>
+                <th class="py-3 px-4">Target Civil Asset Base</th>
+                <th class="py-3 px-4 text-right">Mature Annual ARR</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60 font-mono-code text-slate-300">
+              <tr class="hover:bg-slate-800/30">
+                <td class="py-3.5 px-4 font-semibold text-white flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                  Commercial LEO Constellations
+                </td>
+                <td class="py-3.5 px-4">FCC-mandated 5-year post-mission satellite de-orbit</td>
+                <td class="py-3.5 px-4">$12,000 / sat / yr flight runtime</td>
+                <td class="py-3.5 px-4">6,500 active satellites</td>
+                <td class="py-3.5 px-4 text-right text-emerald-400 font-bold">$78.0M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="py-3.5 px-4 font-semibold text-white flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  Commercial Launch Upper Stages
+                </td>
+                <td class="py-3.5 px-4">Rapid periapsis lowering for spent upper-stage tanks</td>
+                <td class="py-3.5 px-4">$180,000 / flight stage license</td>
+                <td class="py-3.5 px-4">220 commercial orbital launches/yr</td>
+                <td class="py-3.5 px-4 text-right text-emerald-400 font-bold">$39.6M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="py-3.5 px-4 font-semibold text-white flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+                  Active Debris Removal (ADR) Tugs
+                </td>
+                <td class="py-3.5 px-4">Autonomous electrodynamic grappling tug de-orbiting</td>
+                <td class="py-3.5 px-4">$350,000 / tug vehicle / yr</td>
+                <td class="py-3.5 px-4">95 operational servicing tugs</td>
+                <td class="py-3.5 px-4 text-right text-emerald-400 font-bold">$33.2M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="py-3.5 px-4 font-semibold text-white flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                  Civil Space Agency Missions
+                </td>
+                <td class="py-3.5 px-4">NASA / ESA / JAXA scientific debris mitigators</td>
+                <td class="py-3.5 px-4">$750,000 / agency mission suite</td>
+                <td class="py-3.5 px-4">36 multi-agency scientific craft</td>
+                <td class="py-3.5 px-4 text-right text-emerald-400 font-bold">$27.0M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="py-3.5 px-4 font-semibold text-white flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+                  Commercial Space Station Modules
+                </td>
+                <td class="py-3.5 px-4">Orbital maintenance &amp; electrodynamic drag compensation</td>
+                <td class="py-3.5 px-4">$1,200,000 / free-flying habitat / yr</td>
+                <td class="py-3.5 px-4">12 commercial orbital habitats</td>
+                <td class="py-3.5 px-4 text-right text-emerald-400 font-bold">$14.4M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="py-3.5 px-4 font-semibold text-white flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                  Orbital Re-Entry Insurers &amp; FinTech
+                </td>
+                <td class="py-3.5 px-4">Real-time tether snapping &amp; collision liability API</td>
+                <td class="py-3.5 px-4">$85,000 / consortium underwriter</td>
+                <td class="py-3.5 px-4">310 space risk underwriters</td>
+                <td class="py-3.5 px-4 text-right text-emerald-400 font-bold">$26.2M</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="border-t border-slate-700 bg-slate-950 text-white font-mono-code font-bold">
+                <td colspan="4" class="py-3 px-4 text-right uppercase tracking-wider text-slate-300">Total Mature Annual Civil ARR:</td>
+                <td class="py-3 px-4 text-right text-emerald-400 text-sm">$218.4M</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Industry Deep-Dive Cards (Physics in 1 Sentence & Why Others Missed This) -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        <!-- Deep Dive 1: Mega-Constellations -->
+        <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 space-y-3 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="h-2 w-2 rounded-full bg-cyan-400"></span>
+              <h4 class="text-sm font-bold text-white">Commercial LEO Constellations</h4>
+            </div>
+            <div class="space-y-2 text-xs">
+              <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800/80">
+                <strong class="text-cyan-300 block mb-1">Physics in 1 Sentence:</strong>
+                <p class="text-slate-300">
+                  Lorentz deceleration drains orbital kinetic energy without chemical fuel mass, turning Earth's intrinsic geomagnetic dipole into a continuous orbital brake.
+                </p>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800/80">
+                <strong class="text-amber-300 block mb-1">Why Incumbents Missed This:</strong>
+                <p class="text-slate-300">
+                  Legacy operators defaulted to reserve hydrazine mass penalties (~15% satellite dry weight) because past uncontrolled tethers (e.g., TSS-1R) snapped due to unmonitored libration instabilities.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="pt-3 border-t border-slate-800 flex justify-between items-center text-xs font-mono-code text-slate-400">
+            <span>SaaS: $12k/sat/yr</span>
+            <span class="text-emerald-400 font-bold">$78.0M ARR</span>
+          </div>
+        </div>
+
+        <!-- Deep Dive 2: Upper Stages -->
+        <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 space-y-3 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+              <h4 class="text-sm font-bold text-white">Commercial Launch Upper Stages</h4>
+            </div>
+            <div class="space-y-2 text-xs">
+              <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800/80">
+                <strong class="text-emerald-300 block mb-1">Physics in 1 Sentence:</strong>
+                <p class="text-slate-300">
+                  Cutting geomagnetic field lines at 7.8 km/s generates continuous multi-kilovolt potential, providing massive instantaneous deceleration to empty rocket hulls.
+                </p>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800/80">
+                <strong class="text-amber-300 block mb-1">Why Incumbents Missed This:</strong>
+                <p class="text-slate-300">
+                  Launch providers assumed de-orbit requires restarting cryogenic engines or adding heavy solid de-orbit packs; MagTether requires only a 12 kg tape dispenser and flight software.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="pt-3 border-t border-slate-800 flex justify-between items-center text-xs font-mono-code text-slate-400">
+            <span>Stage Lic: $180k/launch</span>
+            <span class="text-emerald-400 font-bold">$39.6M ARR</span>
+          </div>
+        </div>
+
+        <!-- Deep Dive 3: Active Debris Removal Tugs -->
+        <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 space-y-3 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="h-2 w-2 rounded-full bg-purple-400"></span>
+              <h4 class="text-sm font-bold text-white">Active Debris Removal (ADR) Tugs</h4>
+            </div>
+            <div class="space-y-2 text-xs">
+              <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800/80">
+                <strong class="text-purple-300 block mb-1">Physics in 1 Sentence:</strong>
+                <p class="text-slate-300">
+                  Reversing cathode bias converts electrodynamic drag into electrodynamic climb thrust ($+\mathbf{F}_L$), enabling multiple debris capture cycles without refuelling.
+                </p>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800/80">
+                <strong class="text-amber-300 block mb-1">Why Incumbents Missed This:</strong>
+                <p class="text-slate-300">
+                  ADR developers planned single-use suicide tugs with electric Hall thrusters that run out of xenon gas after de-orbiting only 1 or 2 targets.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="pt-3 border-t border-slate-800 flex justify-between items-center text-xs font-mono-code text-slate-400">
+            <span>Tug Fleet: $350k/yr</span>
+            <span class="text-emerald-400 font-bold">$33.2M ARR</span>
+          </div>
+        </div>
+
+        <!-- Deep Dive 4: Civil Space Agencies -->
+        <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 space-y-3 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="h-2 w-2 rounded-full bg-amber-400"></span>
+              <h4 class="text-sm font-bold text-white">Civil Space Science Agencies</h4>
+            </div>
+            <div class="space-y-2 text-xs">
+              <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800/80">
+                <strong class="text-amber-300 block mb-1">Physics in 1 Sentence:</strong>
+                <p class="text-slate-300">
+                  Dynamic observer estimation resolves real-time local equatorial ionospheric plasma irregularities without costly dedicated topside sounders.
+                </p>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800/80">
+                <strong class="text-amber-300 block mb-1">Why Incumbents Missed This:</strong>
+                <p class="text-slate-300">
+                  Scientific missions viewed tethers merely as structural booms or static antennas, overlooking their dual role as active multi-point atmospheric probes and thrust engines.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="pt-3 border-t border-slate-800 flex justify-between items-center text-xs font-mono-code text-slate-400">
+            <span>Mission Suite: $750k/ea</span>
+            <span class="text-emerald-400 font-bold">$27.0M ARR</span>
+          </div>
+        </div>
+
+        <!-- Deep Dive 5: Commercial Space Habitats -->
+        <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 space-y-3 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="h-2 w-2 rounded-full bg-rose-400"></span>
+              <h4 class="text-sm font-bold text-white">Commercial Space Stations</h4>
+            </div>
+            <div class="space-y-2 text-xs">
+              <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800/80">
+                <strong class="text-rose-300 block mb-1">Physics in 1 Sentence:</strong>
+                <p class="text-slate-300">
+                  Solar array power drives reverse electrodynamic tether current, offsetting atmospheric drag without plume contamination on delicate solar panels or optics.
+                </p>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800/80">
+                <strong class="text-amber-300 block mb-1">Why Incumbents Missed This:</strong>
+                <p class="text-slate-300">
+                  ISS relies on multi-ton Progress resupply thruster re-boosts; commercial stations have tight OPEX budgets and cannot afford regular propellant delivery flights.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="pt-3 border-t border-slate-800 flex justify-between items-center text-xs font-mono-code text-slate-400">
+            <span>Station Core: $1.2M/yr</span>
+            <span class="text-emerald-400 font-bold">$14.4M ARR</span>
+          </div>
+        </div>
+
+        <!-- Deep Dive 6: Space Debris Insurers -->
+        <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 space-y-3 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="h-2 w-2 rounded-full bg-blue-400"></span>
+              <h4 class="text-sm font-bold text-white">Space Risk Underwriting &amp; FinTech</h4>
+            </div>
+            <div class="space-y-2 text-xs">
+              <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800/80">
+                <strong class="text-blue-300 block mb-1">Physics in 1 Sentence:</strong>
+                <p class="text-slate-300">
+                  Real-time telemetry streams provide indisputable mathematical proof of safe controlled de-orbit trajectory vs. catastrophic tether sever risk.
+                </p>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800/80">
+                <strong class="text-amber-300 block mb-1">Why Incumbents Missed This:</strong>
+                <p class="text-slate-300">
+                  Insurers had to write blanket punitive premiums because they lacked real-time structural tension telemetry on derelict space assets.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="pt-3 border-t border-slate-800 flex justify-between items-center text-xs font-mono-code text-slate-400">
+            <span>Underwriter API: $85k/yr</span>
+            <span class="text-emerald-400 font-bold">$26.2M ARR</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Contact & Technical Collaboration Callout -->
+      <div class="p-6 rounded-2xl bg-slate-950 border border-cyan-800/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+          <h4 class="text-base font-bold text-white">Direct NASA SBIR / Prime Aerospace Technical Inquiries</h4>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Phase I STTR collaborative data exchange, software evaluation licenses, and hardware integration.
+          </p>
+        </div>
+        <div class="flex items-center gap-3">
+          <a href="mailto:support@rfwavecode.com" class="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-xs font-mono-code flex items-center gap-2 transition glow-cyan">
+            <i data-lucide="mail" class="w-4 h-4"></i>
+            <span>support@rfwavecode.com</span>
+          </a>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Global Footer -->
+  <footer class="border-t border-slate-800/80 bg-slate-950/80 py-4 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-mono-code text-slate-500">
+      <div class="flex items-center gap-2">
+        <span class="text-cyan-400 font-bold">MagTether</span>
+        <span>&copy; 2026 RF WaveCode Dynamics LLC &amp; UCF STTR Consortium</span>
+      </div>
+      <div>NASA SBIR Topic Z11.01-4491 | Space Debris Tracking, Mitigation &amp; Remediation</div>
+    </div>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT APPLICATION CORE (STRICT SINGLE-FILE IMPLEMENTATION) -->
+  <!-- ========================================================================= -->
+  <script>
+    // --- TAB SWITCHING WITH EXPLICIT MAPPING ---
+    const tabMapping = {
+      'sim': { viewId: 'viewSim', btnId: 'tabBtnSim' },
+      'physics': { viewId: 'viewPhysics', btnId: 'tabBtnPhysics' },
+      'proposal': { viewId: 'viewProposal', btnId: 'tabBtnProposal' },
+      'arr': { viewId: 'viewARR', btnId: 'tabBtnARR' }
+    };
+
+    function switchTab(activeKey) {
+      Object.keys(tabMapping).forEach(key => {
+        const item = tabMapping[key];
+        const viewEl = document.getElementById(item.viewId);
+        const btnEl = document.getElementById(item.btnId);
+
+        if (key === activeKey) {
+          viewEl.classList.remove('hidden');
+          btnEl.className = 'flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-cyan-400 text-cyan-400';
+        } else {
+          viewEl.classList.add('hidden');
+          btnEl.className = 'flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200';
+        }
+      });
+
+      // Typeset formulas when switching to any view
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise();
+      }
+
+      // Re-render canvas & charts properly if switching back to sim
+      if (activeKey === 'sim') {
+        setTimeout(() => {
+          resizeCanvas();
+          if (phaseChart) phaseChart.resize();
+          if (librationChart) librationChart.resize();
+          if (emitterChart) emitterChart.resize();
+        }, 50);
+      }
+    }
+
+    // --- SIMULATION PHYSICAL STATE VARIABLES ---
+    const simState = {
+      altitude: 510,        // km
+      plasmaDensity: 1.2,   // 1e11 m^-3
+      tetherLength: 5.0,    // km
+      orbitalVelocity: 7.61,// km/s (computed)
+      bField: 34.2,         // microTesla (computed)
+      theta: 1.4,           // libration angle in degrees
+      thetaDot: 0.05,       // deg/s
+      tension: 4.88,        // Newtons
+      current: 1.84,        // Amperes
+      lorentzForce: 0.31,   // Newtons
+      emitterCathode: 1.84, // Amperes
+      controlMode: 'AUTO',  // 'AUTO' or 'MANUAL'
+      faultActive: false,
+      faultType: 'NONE',
+      time: 0,
+      phaseHistory: []
+    };
+
+    // --- CHART.JS INSTANCES ---
+    let phaseChart = null;
+    let librationChart = null;
+    let emitterChart = null;
+
+    // --- INITIALIZE CHARTS ---
+    function initCharts() {
+      // 1. Phase-Space Chart: B (X-Axis) vs. v (Y-Axis)
+      const ctxPhase = document.getElementById('phaseSpaceChart').getContext('2d');
+      
+      // Generate nominal baseline curve: v = sqrt(GM / (R_E + h)), B = B0 * (R_E / (R_E + h))^3
+      const nominalCurve = [];
+      const snapBoundary = [];
+      for (let alt = 250; alt <= 1000; alt += 25) {
+        const r = 6378 + alt;
+        const v = Math.sqrt(398600 / r); // km/s
+        const b = 31.2 * Math.pow(6378 / r, 3) * Math.sqrt(1 + 3 * Math.pow(Math.sin(0.4), 2)); // microTesla
+        nominalCurve.push({ x: b, y: v });
+        // Hazard boundary: where induced EMF is insufficient or plasma ratio collapses tension
+        snapBoundary.push({ x: b * 0.72, y: v * 1.02 });
+      }
+
+      phaseChart = new Chart(ctxPhase, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            {
+              label: 'Hazard Libration Snap Zone',
+              data: snapBoundary,
+              showLine: true,
+              borderColor: 'rgba(244, 63, 94, 0.7)',
+              borderDash: [6, 4],
+              borderWidth: 2,
+              pointRadius: 0,
+              fill: {
+                target: 'start',
+                above: 'rgba(244, 63, 94, 0.08)'
+              }
+            },
+            {
+              label: 'Nominal De-Orbit Corridor',
+              data: nominalCurve,
+              showLine: true,
+              borderColor: '#06b6d4',
+              borderWidth: 2.5,
+              pointRadius: 0
+            },
+            {
+              label: 'Live Flight State',
+              data: [{ x: simState.bField, y: simState.orbitalVelocity }],
+              backgroundColor: '#f59e0b',
+              borderColor: '#ffffff',
+              borderWidth: 2,
+              pointRadius: 7,
+              pointHoverRadius: 9
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: {
+              labels: {
+                color: '#94a3b8',
+                font: { family: 'JetBrains Mono', size: 10 }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `B: ${ctx.parsed.x.toFixed(2)} µT, v: ${ctx.parsed.y.toFixed(2)} km/s`
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: 'Geomagnetic Flux Density B (µT)',
+                color: '#94a3b8',
+                font: { family: 'JetBrains Mono', size: 11 }
+              },
+              grid: { color: 'rgba(51, 65, 85, 0.3)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono' } },
+              min: 15,
+              max: 42
+            },
+            y: {
+              title: {
+                display: true,
+                text: 'Orbital Velocity v (km/s)',
+                color: '#94a3b8',
+                font: { family: 'JetBrains Mono', size: 11 }
+              },
+              grid: { color: 'rgba(51, 65, 85, 0.3)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono' } },
+              min: 7.2,
+              max: 7.9
+            }
+          }
+        }
+      });
+
+      // 2. Libration Angle & Tether Tension Time Series
+      const ctxLib = document.getElementById('librationChart').getContext('2d');
+      librationChart = new Chart(ctxLib, {
+        type: 'line',
+        data: {
+          labels: Array(30).fill(''),
+          datasets: [
+            {
+              label: 'Angle θ (deg)',
+              data: Array(30).fill(1.4),
+              borderColor: '#06b6d4',
+              backgroundColor: 'rgba(6, 182, 212, 0.1)',
+              yAxisID: 'yAngle',
+              tension: 0.3,
+              borderWidth: 2,
+              pointRadius: 0
+            },
+            {
+              label: 'Tension T (N)',
+              data: Array(30).fill(4.88),
+              borderColor: '#c084fc',
+              backgroundColor: 'rgba(192, 132, 252, 0.1)',
+              yAxisID: 'yTension',
+              tension: 0.3,
+              borderWidth: 2,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: {
+              labels: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } }
+            }
+          },
+          scales: {
+            x: { display: false },
+            yAngle: {
+              type: 'linear',
+              position: 'left',
+              min: -30,
+              max: 30,
+              grid: { color: 'rgba(51, 65, 85, 0.25)' },
+              ticks: { color: '#06b6d4', font: { family: 'JetBrains Mono', size: 10 } }
+            },
+            yTension: {
+              type: 'linear',
+              position: 'right',
+              min: 0,
+              max: 10,
+              grid: { drawOnChartArea: false },
+              ticks: { color: '#c084fc', font: { family: 'JetBrains Mono', size: 10 } }
+            }
+          }
+        }
+      });
+
+      // 3. Emitter Current vs. Lorentz Force Time Series
+      const ctxEmit = document.getElementById('emitterChart').getContext('2d');
+      emitterChart = new Chart(ctxEmit, {
+        type: 'line',
+        data: {
+          labels: Array(30).fill(''),
+          datasets: [
+            {
+              label: 'Cathode Emitter (A)',
+              data: Array(30).fill(1.84),
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              yAxisID: 'yCurrent',
+              tension: 0.3,
+              borderWidth: 2,
+              pointRadius: 0
+            },
+            {
+              label: 'Lorentz Decel Force (N)',
+              data: Array(30).fill(0.31),
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              yAxisID: 'yForce',
+              tension: 0.3,
+              borderWidth: 2,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: {
+              labels: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } }
+            }
+          },
+          scales: {
+            x: { display: false },
+            yCurrent: {
+              type: 'linear',
+              position: 'left',
+              min: 0,
+              max: 4.0,
+              grid: { color: 'rgba(51, 65, 85, 0.25)' },
+              ticks: { color: '#10b981', font: { family: 'JetBrains Mono', size: 10 } }
+            },
+            yForce: {
+              type: 'linear',
+              position: 'right',
+              min: 0,
+              max: 1.0,
+              grid: { drawOnChartArea: false },
+              ticks: { color: '#f59e0b', font: { family: 'JetBrains Mono', size: 10 } }
+            }
+          }
+        }
+      });
+    }
+
+    // --- CANVAS VISUALIZATION RENDERING ENGINE ---
+    const canvas = document.getElementById('tetherCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width || 600;
+      const h = rect.height || 340;
+      canvas.width = w * window.devicePixelRatio;
+      canvas.height = h * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+    });
+
+    // Particle field representing ionospheric plasma
+    const plasmaParticles = [];
+    for (let i = 0; i < 45; i++) {
+      plasmaParticles.push({
+        x: Math.random() * 800,
+        y: Math.random() * 400,
+        speed: 1.2 + Math.random() * 2.5,
+        radius: 1 + Math.random() * 1.8,
+        alpha: 0.2 + Math.random() * 0.6
+      });
+    }
+
+    function renderTetherCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const width = rect.width || 600;
+      const height = rect.height || 340;
+
+      // Dark space background
+      ctx.fillStyle = '#020409';
+      ctx.fillRect(0, 0, width, height);
+
+      // 1. Draw Earth's curvature at bottom
+      const earthRadius = width * 1.5;
+      const earthCenterX = width / 2;
+      const earthCenterY = height + earthRadius - 40;
+
+      const earthGrad = ctx.createRadialGradient(earthCenterX, earthCenterY, earthRadius * 0.85, earthCenterX, earthCenterY, earthRadius);
+      earthGrad.addColorStop(0, '#041d3b');
+      earthGrad.addColorStop(0.9, '#072e59');
+      earthGrad.addColorStop(1, '#0284c7');
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(earthCenterX, earthCenterY, earthRadius, 0, Math.PI * 2);
+      ctx.fillStyle = earthGrad;
+      ctx.fill();
+
+      // Atmospheric glow limb
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 15;
+      ctx.stroke();
+      ctx.restore();
+
+      // 2. Draw Geomagnetic Field Lines (B-Field)
+      ctx.save();
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.18)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 6]);
+      for (let offset = -180; offset <= 180; offset += 45) {
+        ctx.beginPath();
+        ctx.moveTo(width / 2 + offset - 60, 20);
+        ctx.bezierCurveTo(width / 2 + offset, height * 0.45, width / 2 + offset, height * 0.7, width / 2 + offset + 80, height);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 3. Draw Ionospheric Plasma Electrons streaming past
+      ctx.save();
+      plasmaParticles.forEach(p => {
+        p.x -= p.speed * (simState.faultActive ? 0.3 : 1.0);
+        if (p.x < 0) p.x = width;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(56, 189, 248, ${p.alpha * (simState.plasmaDensity / 1.5)})`;
+        ctx.fill();
+      });
+      ctx.restore();
+
+      // 4. Calculate Anchor points for the Debris and Electrodynamic Tether
+      const anchorX = width * 0.52;
+      const anchorY = 65; // Upper satellite / debris stage
+      const tetherVisualLen = Math.min(height * 0.55, 175);
+      
+      const rad = (simState.theta * Math.PI) / 180;
+      const endX = anchorX + tetherVisualLen * Math.sin(rad);
+      const endY = anchorY + tetherVisualLen * Math.cos(rad);
+
+      // Mid-point sag/bend due to Lorentz drag
+      const midX = (anchorX + endX) / 2 + Math.sin(simState.time * 0.04) * 4 - (simState.lorentzForce * 12);
+      const midY = (anchorY + endY) / 2;
+
+      // 5. Draw the conductive bare-wire tether
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(anchorX, anchorY);
+      ctx.quadraticCurveTo(midX, midY, endX, endY);
+      
+      if (simState.faultActive) {
+        ctx.strokeStyle = '#f43f5e';
+        ctx.shadowColor = '#f43f5e';
+      } else {
+        ctx.strokeStyle = '#06b6d4';
+        ctx.shadowColor = '#06b6d4';
+      }
+      ctx.lineWidth = 2.5;
+      ctx.shadowBlur = simState.faultActive ? 12 : 8;
+      ctx.stroke();
+      ctx.restore();
+
+      // 6. Anode End-Body (Remediated Space Debris / Upper Stage)
+      ctx.save();
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = '#0ea5e9';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(anchorX - 16, anchorY - 14, 32, 28, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // Solar panel wings on debris
+      ctx.fillStyle = '#0369a1';
+      ctx.fillRect(anchorX - 32, anchorY - 6, 14, 12);
+      ctx.fillRect(anchorX + 18, anchorY - 6, 14, 12);
+
+      // Anode label
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '10px "JetBrains Mono"';
+      ctx.fillText('ANODE (Debris)', anchorX + 22, anchorY - 16);
+      ctx.restore();
+
+      // 7. Cathode End-Body (Active Electron Emitter Package)
+      ctx.save();
+      ctx.fillStyle = '#0f172a';
+      ctx.strokeStyle = simState.faultActive ? '#f43f5e' : '#10b981';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(endX, endY, 13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Active Hollow Cathode Plasma Plume Emission
+      if (simState.emitterCathode > 0.2) {
+        const plumeLength = 12 + simState.emitterCathode * 7;
+        const gradPlume = ctx.createRadialGradient(endX, endY, 2, endX - plumeLength, endY + 4, plumeLength);
+        gradPlume.addColorStop(0, 'rgba(16, 185, 129, 0.9)');
+        gradPlume.addColorStop(0.5, 'rgba(6, 182, 212, 0.4)');
+        gradPlume.addColorStop(1, 'rgba(6, 182, 212, 0)');
+
+        ctx.fillStyle = gradPlume;
+        ctx.beginPath();
+        ctx.arc(endX, endY, plumeLength, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = '#10b981';
+      ctx.font = '10px "JetBrains Mono"';
+      ctx.fillText('CATHODE EMITTER', endX + 18, endY + 4);
+      ctx.restore();
+
+      // 8. Vector Overlays (Lorentz Force Deceleration & Velocity Vector)
+      ctx.save();
+      // v vector (tangential)
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(anchorX, anchorY);
+      ctx.lineTo(anchorX + 45, anchorY);
+      ctx.stroke();
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText('v (7.6 km/s)', anchorX + 48, anchorY - 4);
+
+      // F_Lorentz vector (braking backwards)
+      ctx.strokeStyle = '#f59e0b';
+      ctx.beginPath();
+      ctx.moveTo(midX, midY);
+      ctx.lineTo(midX - 35, midY);
+      ctx.stroke();
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillText('F_Lorentz', midX - 60, midY - 6);
+      ctx.restore();
+    }
+
+    // --- PHYSICS ENGINE STEP & CLOSED-LOOP OBSERVER LOGIC ---
+    let frameCount = 0;
+
+    function stepPhysics() {
+      simState.time += 1;
+
+      // 1. Compute Orbit Dynamics from Altitude
+      const r = 6378 + simState.altitude; // km
+      simState.orbitalVelocity = Math.sqrt(398600 / r); // km/s
+      simState.bField = 31.2 * Math.pow(6378 / r, 3) * 1.15; // microTesla (approx equatorial dipole)
+
+      // 2. Induced EMF across tether
+      // E = v x B * L
+      const inducedEMF = (simState.orbitalVelocity * 1000) * (simState.bField * 1e-6) * (simState.tetherLength * 1000); // Volts
+
+      // 3. Current Collection via OML and active Cathode Throttle
+      let nominalCurrent = 0.9 * simState.plasmaDensity * (simState.tetherLength / 5.0) * (simState.bField / 30);
+      
+      if (simState.faultActive) {
+        // Sudden plasma drop or cathode cutoff
+        nominalCurrent *= 0.15;
+      }
+
+      // 4. Closed-loop flight controller logic
+      if (simState.controlMode === 'AUTO') {
+        // Observer detects deviation between tension, B-field, and libration
+        // Applies damping modulation: if libration angular rate increases, modulate cathode current
+        const dampingTorque = -0.18 * simState.thetaDot;
+        simState.emitterCathode = Math.max(0.2, Math.min(3.5, nominalCurrent + dampingTorque));
+        simState.current = simState.emitterCathode;
+
+        // Dynamic restoration
+        const naturalFreq = 0.06;
+        const restoringAcc = -Math.sin((simState.theta * Math.PI) / 180) * 0.4;
+        simState.thetaDot += restoringAcc - (simState.thetaDot * 0.08);
+        simState.theta += simState.thetaDot;
+
+        // Auto recover from fault if safe
+        if (simState.faultActive && Math.abs(simState.theta) < 12) {
+          // Controlled recovery
+        }
+      } else {
+        // MANUAL MODE: No active damping feedback. Oscillations grow chaotically!
+        const naturalFreq = 0.05;
+        const torque = (simState.lorentzForce * 1.4) * Math.cos((simState.theta * Math.PI) / 180);
+        simState.thetaDot += (torque * 0.08) - Math.sin((simState.theta * Math.PI) / 180) * 0.25;
+        simState.theta += simState.thetaDot;
+      }
+
+      // 5. Lorentz Deceleration Force: F_L = I * L * B
+      simState.lorentzForce = simState.current * (simState.tetherLength * 1000) * (simState.bField * 1e-6); // Newtons
+
+      // 6. Tether Tension calculation: T = 3 * m * omega^2 * L * cos^2(theta) + F_L
+      const gravityGradientTension = 4.2 * (simState.tetherLength / 5.0) * Math.pow(Math.cos((simState.theta * Math.PI) / 180), 2);
+      simState.tension = Math.max(0.05, gravityGradientTension + simState.lorentzForce * 0.65);
+
+      // Fault checks (Chaotic snapping / slack)
+      if (Math.abs(simState.theta) > 22.0 || simState.tension < 1.0) {
+        updateAlert(true, 'CHAOTIC LIBRATION WARNING: Tension collapse danger. Active cathode modulation saturated.');
+      } else if (simState.faultActive) {
+        updateAlert(true, 'PLASMA DROPOUT DETECTED: Ambient electron density collapsed. Modulating emitter discharge.');
+      } else {
+        updateAlert(false, 'CLOSED-LOOP OBSERVER ACTIVE: Continuous geomagnetic flux B and velocity tracking nominal.');
+      }
+
+      // Update DOM Metrics every tick
+      updateTelemetryDOM(inducedEMF);
+
+      // Update Charts on throttled interval (every 3 frames)
+      frameCount++;
+      if (frameCount % 3 === 0) {
+        updateChartTelemetry();
+      }
+
+      // Render Canvas
+      renderTetherCanvas();
+    }
+
+    // --- DOM TELEMETRY HUD UPDATES ---
+    function updateTelemetryDOM(emf) {
+      document.getElementById('hudAlt').innerText = `${Math.round(simState.altitude)} km`;
+      document.getElementById('hudB').innerText = `${simState.bField.toFixed(1)} µT`;
+      document.getElementById('hudV').innerText = `${simState.orbitalVelocity.toFixed(2)} km/s`;
+      document.getElementById('hudTheta').innerText = `${simState.theta.toFixed(1)}°`;
+      document.getElementById('hudTension').innerText = `${simState.tension.toFixed(2)} N`;
+
+      document.getElementById('topOrbitAlt').innerText = `${Math.round(simState.altitude)} km LEO`;
+      document.getElementById('topControlStatus').innerText = simState.controlMode === 'AUTO' ? 'ACTIVE AUTO' : 'MANUAL OPEN';
+
+      document.getElementById('metricEMF').innerText = `${Math.round(emf)} V`;
+      document.getElementById('metricCurrent').innerText = `${simState.current.toFixed(2)} A`;
+      document.getElementById('metricLorentz').innerText = `${simState.lorentzForce.toFixed(2)} N`;
+      
+      // De-orbit rate ~ F_L / m_satellite * factor
+      const deorbitRate = (simState.lorentzForce * 48.0).toFixed(1);
+      document.getElementById('metricDeorbit').innerText = `${deorbitRate} km/day`;
+
+      document.getElementById('lorentzMetric').innerText = `${simState.lorentzForce.toFixed(2)} N`;
+      document.getElementById('emitterMetric').innerText = `${simState.emitterCathode.toFixed(2)} A (${simState.controlMode})`;
+    }
+
+    function updateAlert(isAlert, message) {
+      const alertBox = document.getElementById('systemStateAlert');
+      const alertTitle = document.getElementById('alertTitle');
+      const alertDesc = document.getElementById('alertDesc');
+      const badgeState = document.getElementById('badgeState');
+      const phasePointStatus = document.getElementById('phasePointStatus');
+
+      if (isAlert) {
+        alertBox.className = 'p-3.5 rounded-xl border border-rose-500/40 bg-rose-950/30 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm glow-rose';
+        alertTitle.className = 'font-bold text-rose-400 font-mono-code';
+        alertTitle.innerText = 'ANOMALY EXCURSION DETECTED:';
+        alertDesc.innerText = message;
+        badgeState.className = 'px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/40';
+        badgeState.innerText = 'LIBRATION CRITICAL';
+        phasePointStatus.className = 'text-rose-400 font-bold';
+        phasePointStatus.innerText = 'HAZARD ZONE';
+      } else {
+        alertBox.className = 'p-3.5 rounded-xl border border-cyan-500/30 bg-cyan-950/20 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm';
+        alertTitle.className = 'font-bold text-cyan-300 font-mono-code';
+        alertTitle.innerText = 'CLOSED-LOOP OBSERVER ACTIVE:';
+        alertDesc.innerText = message;
+        badgeState.className = 'px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+        badgeState.innerText = 'LIBRATION STABLE';
+        phasePointStatus.className = 'text-amber-300 font-bold';
+        phasePointStatus.innerText = 'IN BOUNDS';
+      }
+    }
+
+    function updateChartTelemetry() {
+      if (!phaseChart || !librationChart || !emitterChart) return;
+
+      // Update Phase-Space live point
+      phaseChart.data.datasets[2].data = [{ x: simState.bField, y: simState.orbitalVelocity }];
+      phaseChart.update('none');
+
+      // Update Libration Time Series
+      librationChart.data.datasets[0].data.shift();
+      librationChart.data.datasets[0].data.push(simState.theta);
+      librationChart.data.datasets[1].data.shift();
+      librationChart.data.datasets[1].data.push(simState.tension);
+      librationChart.update('none');
+
+      // Update Emitter Time Series
+      emitterChart.data.datasets[0].data.shift();
+      emitterChart.data.datasets[0].data.push(simState.emitterCathode);
+      emitterChart.data.datasets[1].data.shift();
+      emitterChart.data.datasets[1].data.push(simState.lorentzForce);
+      emitterChart.update('none');
+    }
+
+    // --- USER CONTROLS & EVENT LISTENERS ---
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize Lucide icons
+      lucide.createIcons();
+
+      // Sliders
+      const sliderAlt = document.getElementById('sliderAlt');
+      const sliderPlasma = document.getElementById('sliderPlasma');
+      const sliderLength = document.getElementById('sliderLength');
+
+      sliderAlt.addEventListener('input', (e) => {
+        simState.altitude = parseFloat(e.target.value);
+        document.getElementById('sliderAltVal').innerText = `${simState.altitude} km`;
+      });
+
+      sliderPlasma.addEventListener('input', (e) => {
+        simState.plasmaDensity = parseFloat(e.target.value);
+        document.getElementById('sliderPlasmaVal').innerHTML = `${simState.plasmaDensity.toFixed(1)} &times; 10&sup1;&sup1; m&sup3;`;
+      });
+
+      sliderLength.addEventListener('input', (e) => {
+        simState.tetherLength = parseFloat(e.target.value);
+        document.getElementById('sliderLengthVal').innerText = `${simState.tetherLength.toFixed(1)} km`;
+      });
+
+      // Mode Buttons
+      const btnModeAuto = document.getElementById('btnModeAuto');
+      const btnModeManual = document.getElementById('btnModeManual');
+
+      btnModeAuto.addEventListener('click', () => {
+        simState.controlMode = 'AUTO';
+        btnModeAuto.className = 'py-2 px-3 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono-code text-xs font-semibold flex items-center justify-center gap-1.5';
+        btnModeManual.className = 'py-2 px-3 rounded-lg bg-slate-800/80 hover:bg-slate-800 text-slate-400 border border-slate-700 font-mono-code text-xs flex items-center justify-center gap-1.5 transition';
+      });
+
+      btnModeManual.addEventListener('click', () => {
+        simState.controlMode = 'MANUAL';
+        btnModeManual.className = 'py-2 px-3 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono-code text-xs font-semibold flex items-center justify-center gap-1.5';
+        btnModeAuto.className = 'py-2 px-3 rounded-lg bg-slate-800/80 hover:bg-slate-800 text-slate-400 border border-slate-700 font-mono-code text-xs flex items-center justify-center gap-1.5 transition';
+      });
+
+      // Fault Injection Buttons
+      const btnInject = document.getElementById('btnInjectAnomaly');
+      const emergencyKillBtn = document.getElementById('emergencyKillBtn');
+      const btnReset = document.getElementById('btnResetNominal');
+
+      function triggerFault() {
+        simState.faultActive = true;
+        simState.thetaDot += (Math.random() > 0.5 ? 2.5 : -2.5);
+      }
+
+      btnInject.addEventListener('click', triggerFault);
+      emergencyKillBtn.addEventListener('click', triggerFault);
+
+      btnReset.addEventListener('click', () => {
+        simState.faultActive = false;
+        simState.theta = 1.4;
+        simState.thetaDot = 0.05;
+        simState.controlMode = 'AUTO';
+        btnModeAuto.click();
+      });
+
+      // Initialize Charts & Canvas
+      initCharts();
+      resizeCanvas();
+
+      // Start Real-Time Physics Loop at 40ms interval (25 FPS stable loop)
+      setInterval(stepPhysics, 40);
+    });
+  </script>
+</body>
+</html>
